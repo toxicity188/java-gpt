@@ -1,11 +1,14 @@
 package io.heartpattern.javagpt.dto;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
-public record Message(
-        Role role,
-        String content
-) {
+@Data
+@AllArgsConstructor
+public class Message {
+    private Role role;
+    private String content;
     public enum Role {
         USER,
         SYSTEM,

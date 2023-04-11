@@ -1,0 +1,28 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '5.1.0'
+}
+
+repositories {
+    mavenCentral()
+}
+dependencies {
+    compileOnly 'org.projectlombok:lombok:1.18.26'
+    annotationProcessor 'org.projectlombok:lombok:1.18.26'
+    implementation group: "com.fasterxml.jackson.core", name: "jackson-databind", version: "2.12.3"
+    implementation group: "com.fasterxml.jackson.module", name: "jackson-module-jsonSchema", version: "2.12.3"
+    implementation 'org.apache.httpcomponents:httpclient:4.5.14'
+}
+
+compileJava.options.encoding = 'UTF-8'
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+shadowJar {
+    relocate("com.fasterxml","io.heartpattern.javagpt.shaded.com.fasterxml")
+    relocate("javax.validation","io.heartpattern.javagpt.shaded.javax.validation")
+    relocate("org.apache","io.heartpattern.javagpt.shaded.org.apache")
+    exclude("module-info.class")
+}

@@ -5,20 +5,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import io.heartpattern.javagpt.dto.ChatRequest;
-import io.heartpattern.javagpt.dto.ChatResponse;
 import io.heartpattern.javagpt.dto.Message;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.List;
+import java.util.Collections;
 
 class JavaGptInvocationHandler implements InvocationHandler {
     private final String apiKey;
-    private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper()
             .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
     private final JsonSchemaGenerator jsonSchemaGenerator = new JsonSchemaGenerator(objectMapper);
@@ -54,42 +55,25 @@ class JavaGptInvocationHandler implements InvocationHandler {
         }
 
         String prompt = builder.toString();
+        ChatRequest request = new ChatRequest(
+                "gpt-3.5-turbo",
+                Collections.singletonList(new Message(Message.Role.USER, prompt))
+        );
 
-        for (int i = 0; ; i++) {
-            ChatRequest request = new ChatRequest(
-                    "gpt-3.5-turbo",
-                    List.of(
-                            new Message(Message.Role.USER, prompt)
-                    )
-            );
+        HttpPost get = new HttpPost("https://api.openai.com/v1/chat/completions");
+        get.setHeader("Authorization", "Bearer " + apiKey);
+        get.setHeader("Accept", "application/json");
+        get.setHeader("Content-Type", "application/json");
+        get.setEntity(new StringEntity(objectMapper.writeValueAsString(request)));
 
-            ChatResponse response = objectMapper.readValue(
-                    httpClient.send(
-                            HttpRequest.newBuilder()
-                                    .uri(new URI("https://api.openai.com/v1/chat/completions"))
-                                    .header("Authorization", "Bearer " + apiKey)
-                                    .header("Content-Type", "application/json")
-                                    .POST(
-                                            HttpRequest.BodyPublishers.ofString(
-                                                    objectMapper.writeValueAsString(request)
-                                            )
-                                    )
-                                    .build(),
-                            HttpResponse.BodyHandlers.ofString()
-                    ).body(),
-                    ChatResponse.class
-            );
 
-            String rawResponse = response.choices().get(0).message().content();
-
-            try {
-                JsonNode node = objectMapper.readTree(rawResponse);
-                return objectMapper.treeToValue(node.get("result"), method.getReturnType());
-            } catch (Exception e) {
-                if (i == 2) {
-                    throw new Exception("Invalid chat gpt response: " + rawResponse, e);
-                }
-            }
+        try (CloseableHttpClient client = HttpClients.createDefault(); CloseableHttpResponse request1 = client.execute(get)) {
+            String rawResponse = new BufferedReader(new InputStreamReader(request1.getEntity().getContent())).readLine();
+            JsonNode node = objectMapper.readTree(rawResponse);
+            JsonNode node2 = objectMapper.readTree(objectMapper.treeToValue(node.get("choices").get(0).get("message").get("content"),String.class));
+            return objectMapper.treeToValue(node2.get("result"), method.getReturnType());
+        } catch (Exception ignored) {
+            throw new Exception("Invalid chat gpt response.");
         }
     }
 }

@@ -1,9 +1,13 @@
 package io.heartpattern.javagpt.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
 import java.util.List;
 
-public record ChatRequest(
-        String model,
-        List<Message> messages
-) {
+@Data
+@AllArgsConstructor
+public class ChatRequest {
+    private String model;
+    private List<Message> messages;
 }
